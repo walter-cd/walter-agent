@@ -2,12 +2,14 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"container/list"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"strconv"
@@ -105,7 +107,12 @@ func runWalter(job api.Job, done chan bool, num int64) {
 
 	os.Chdir(repoDir)
 
-	out, err = exec.Command("git", "fetch").CombinedOutput()
+	var ref string
+	if job.PullRequestNumber != 0 {
+		ref = fmt.Sprintf("+refs/pull/%d/head", job.PullRequestNumber)
+	}
+
+	out, err = exec.Command("git", "fetch", "origin", ref).CombinedOutput()
 	fmt.Println(string(out))
 	fmt.Println(err)
 
@@ -144,7 +151,7 @@ func postReport(job api.Job, result bool, w *walter.Walter, start int64, end int
 		Status:     status,
 		Branch:     job.Branch,
 		CompareUrl: job.CompareUrl,
-		TriggeredBy: &api.User{
+		TriggeredBy: api.User{
 			Name:      job.TriggeredBy.Name,
 			Url:       job.TriggeredBy.Url,
 			AvatarUrl: job.TriggeredBy.AvatarUrl,
@@ -184,7 +191,24 @@ func postReport(job api.Job, result bool, w *walter.Walter, start int64, end int
 	}
 
 	b, _ := json.Marshal(report)
-	fmt.Println(string(b))
+
+	client := &http.Client{}
+
+	u, _ := url.Parse(server)
+	u.Path = "/api/v1/reports"
+	req, err := http.NewRequest("POST", u.String(), bytes.NewBuffer(b))
+
+	if err != nil {
+		panic(err)
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+
+	res, err := client.Do(req)
+
+	if err != nil {
+		panic(err)
+	}
 }
 
 func getChildStages(l list.List) (st []*api.Stage) {
