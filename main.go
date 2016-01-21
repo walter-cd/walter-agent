@@ -12,11 +12,14 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/walter-cd/walter-server/api"
 	"github.com/walter-cd/walter/config"
+	"github.com/walter-cd/walter/services"
 	"github.com/walter-cd/walter/stages"
 	"github.com/walter-cd/walter/walter"
 )
@@ -130,12 +133,14 @@ func runWalter(job api.Job, done chan bool, num int64) {
 	result := w.Run()
 	end := time.Now().Unix()
 
-	postReport(job, result, w, start, end)
+	reportId := postReport(job, result, w, start, end)
+
+	updateStatus(job, result, w, reportId)
 
 	done <- true
 }
 
-func postReport(job api.Job, result bool, w *walter.Walter, start int64, end int64) {
+func postReport(job api.Job, result bool, w *walter.Walter, start int64, end int64) int64 {
 	var status string
 	if result {
 		status = "success"
@@ -204,11 +209,25 @@ func postReport(job api.Job, result bool, w *walter.Walter, start int64, end int
 
 	req.Header.Add("Content-Type", "application/json")
 
-	res, err := client.Do(req)
+	res, _ := client.Do(req)
 
+	rb := bufio.NewReader(res.Body)
+	var body string
+	for {
+		s, err := rb.ReadString('\n')
+		body = body + s
+		if err == io.EOF {
+			break
+		}
+	}
+
+	var data api.Report
+	err = json.Unmarshal([]byte(body), &data)
 	if err != nil {
 		panic(err)
 	}
+
+	return data.Id
 }
 
 func getChildStages(l list.List) (st []*api.Stage) {
@@ -237,5 +256,38 @@ func getChildStages(l list.List) (st []*api.Stage) {
 	return
 }
 
-func updateStatus() {
+func updateStatus(job api.Job, result bool, w *walter.Walter, reportId int64) {
+	github := w.Engine.Resources.RepoService
+
+	project := strings.Split(job.Project, "/")
+
+	value := reflect.ValueOf(github).Elem()
+
+	value.FieldByName("From").SetString(project[0])
+	value.FieldByName("Repo").SetString(project[1])
+
+	state := ""
+	message := ""
+	if result {
+		state = "success"
+		message = "Walter build succeeded"
+	} else {
+		state = "fail"
+		message = "Walter build failed"
+	}
+
+	u, _ := url.Parse(server)
+	u.RawQuery = fmt.Sprintf("project=%s&report=%d", job.Project, reportId)
+
+	res := services.Result{
+		State:   state,
+		Message: message,
+		SHA:     job.Revision,
+		Url:     u.String(),
+	}
+
+	github.RegisterResult(res)
+}
+
+func notify() {
 }
