@@ -277,7 +277,10 @@ func updateStatus(job api.Job, result bool, w *walter.Walter, reportId int64) {
 	}
 
 	u, _ := url.Parse(server)
-	u.RawQuery = fmt.Sprintf("project=%s&report=%d", job.Project, reportId)
+	values := u.Query()
+	values.Add("project", job.Project)
+	values.Add("report", strconv.FormatInt(reportId, 10))
+	u.RawQuery = values.Encode()
 
 	res := services.Result{
 		State:   state,
