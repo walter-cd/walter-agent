@@ -302,10 +302,10 @@ func notify(job api.Job, result bool, w *walter.Walter, reportId int64) {
 	var color string
 
 	if result {
-		status = "*SUCCESS*"
+		status = "SUCCESS"
 		color = "good" // FIXME: This color name is for Slack.
 	} else {
-		status = "*FAILURE*"
+		status = "FAILURE"
 		color = "danger" // FIXME: This color name is for Slack.
 	}
 
