@@ -19,6 +19,7 @@ import (
 
 	"github.com/walter-cd/walter-server/api"
 	"github.com/walter-cd/walter/config"
+	"github.com/walter-cd/walter/log"
 	"github.com/walter-cd/walter/services"
 	"github.com/walter-cd/walter/stages"
 	"github.com/walter-cd/walter/walter"
@@ -34,12 +35,14 @@ func main() {
 	flags := flag.NewFlagSet("walter-agent", flag.ExitOnError)
 	flags.StringVar(&server, "server", "http://localhost:8080/", "URL of walter-server")
 	flags.Int64Var(&maxWorkers, "max_workers", 5, "Maximum number of walter workers")
-	flags.Int64Var(&interval, "internal", 1, "Job polling interval by seconds")
+	flags.Int64Var(&interval, "interval", 1, "Job polling interval by seconds")
 	flags.StringVar(&workingDir, "working_dir", "/var/tmp/walter", "Working directory")
 
 	if err := flags.Parse(os.Args[1:]); err != nil {
 		panic(err)
 	}
+
+	log.Info("walter-agent started")
 
 	queue := make(chan api.Job)
 	done := make(chan bool)
@@ -72,7 +75,7 @@ func pollJob(queue chan api.Job) {
 			var job api.Job
 			err := json.Unmarshal([]byte(body), &job)
 			if err != nil {
-				panic(err)
+				log.Error(err.Error())
 			}
 			queue <- job
 		}
@@ -105,8 +108,10 @@ func runWalter(job api.Job, done chan bool, num int64) {
 	}
 
 	out, err := exec.Command("git", "clone", job.CloneUrl, repoDir).CombinedOutput()
-	fmt.Println(string(out))
-	fmt.Println(err)
+	log.Debug((string(out)))
+	if err != nil {
+		log.Debug(err.Error())
+	}
 
 	os.Chdir(repoDir)
 
@@ -116,12 +121,16 @@ func runWalter(job api.Job, done chan bool, num int64) {
 	}
 
 	out, err = exec.Command("git", "fetch", "origin", ref).CombinedOutput()
-	fmt.Println(string(out))
-	fmt.Println(err)
+	log.Debug((string(out)))
+	if err != nil {
+		log.Debug(err.Error())
+	}
 
 	out, err = exec.Command("git", "checkout", job.Revision).CombinedOutput()
-	fmt.Println(string(out))
-	fmt.Println(err)
+	log.Debug((string(out)))
+	if err != nil {
+		log.Debug(err.Error())
+	}
 
 	opts := &config.Opts{
 		PipelineFilePath: "./pipeline.yml",
@@ -136,6 +145,7 @@ func runWalter(job api.Job, done chan bool, num int64) {
 	reportId := postReport(job, result, w, start, end)
 
 	updateStatus(job, result, w, reportId)
+	notify(job, result, w, reportId)
 
 	done <- true
 }
@@ -204,7 +214,7 @@ func postReport(job api.Job, result bool, w *walter.Walter, start int64, end int
 	req, err := http.NewRequest("POST", u.String(), bytes.NewBuffer(b))
 
 	if err != nil {
-		panic(err)
+		log.Error(err.Error())
 	}
 
 	req.Header.Add("Content-Type", "application/json")
@@ -224,7 +234,7 @@ func postReport(job api.Job, result bool, w *walter.Walter, start int64, end int
 	var data api.Report
 	err = json.Unmarshal([]byte(body), &data)
 	if err != nil {
-		panic(err)
+		log.Error(err.Error())
 	}
 
 	return data.Id
@@ -276,21 +286,38 @@ func updateStatus(job api.Job, result bool, w *walter.Walter, reportId int64) {
 		message = "Walter build failed"
 	}
 
+	res := services.Result{
+		State:   state,
+		Message: message,
+		SHA:     job.Revision,
+		Url:     buildUrl(job, reportId),
+	}
+
+	github.RegisterResult(res)
+}
+
+func notify(job api.Job, result bool, w *walter.Walter, reportId int64) {
+	reporter := w.Engine.Resources.Reporter
+	var status string
+	var color string
+
+	if result {
+		status = "*SUCCESS*"
+		color = "good" // FIXME: This color name is for Slack.
+	} else {
+		status = "*FAILURE*"
+		color = "danger" // FIXME: This color name is for Slack.
+	}
+
+	reporter.Post(fmt.Sprintf("%s - #%d %s (<%s|Open>)", job.Project, reportId, status, buildUrl(job, reportId)), color)
+}
+
+func buildUrl(job api.Job, reportId int64) string {
 	u, _ := url.Parse(server)
 	values := u.Query()
 	values.Add("project", job.Project)
 	values.Add("report", strconv.FormatInt(reportId, 10))
 	u.RawQuery = values.Encode()
 
-	res := services.Result{
-		State:   state,
-		Message: message,
-		SHA:     job.Revision,
-		Url:     u.String(),
-	}
-
-	github.RegisterResult(res)
-}
-
-func notify() {
+	return u.String()
 }
