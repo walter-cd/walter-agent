@@ -59,7 +59,13 @@ func pollJob(queue chan api.Job) {
 			continue
 		}
 
-		res, _ := http.Get(fmt.Sprintf("%s/api/v1/jobs/pop", server))
+		res, err := http.Get(fmt.Sprintf("%s/api/v1/jobs/pop", server))
+
+		if err != nil {
+			log.Error(err.Error())
+			time.Sleep(5 * time.Second)
+			continue
+		}
 
 		if res.Status == "200 OK" {
 			rb := bufio.NewReader(res.Body)
