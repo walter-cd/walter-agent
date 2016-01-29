@@ -36,7 +36,7 @@ func main() {
 	flags.StringVar(&server, "server", "http://localhost:8080/", "URL of walter-server")
 	flags.Int64Var(&maxWorkers, "max_workers", 5, "Maximum number of walter workers")
 	flags.Int64Var(&interval, "interval", 1, "Job polling interval by seconds")
-	flags.StringVar(&workingDir, "working_dir", "/var/tmp/walter", "Working directory")
+	flags.StringVar(&workingDir, "working_dir", "/var/lib/walter/workspace", "Working directory")
 
 	if err := flags.Parse(os.Args[1:]); err != nil {
 		panic(err)
