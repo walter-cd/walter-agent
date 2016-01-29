@@ -12,7 +12,6 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -277,10 +276,13 @@ func updateStatus(job api.Job, result bool, w *walter.Walter, reportId int64) {
 
 	project := strings.Split(job.Project, "/")
 
-	value := reflect.ValueOf(github).Elem()
+	github.(*services.GitHubClient).From = project[0]
+	github.(*services.GitHubClient).Repo = project[1]
 
-	value.FieldByName("From").SetString(project[0])
-	value.FieldByName("Repo").SetString(project[1])
+	baseUrl, _ := url.Parse(job.StatusesUrl)
+	baseUrl.Path = ""
+
+	github.(*services.GitHubClient).BaseUrl = baseUrl
 
 	state := ""
 	message := ""
