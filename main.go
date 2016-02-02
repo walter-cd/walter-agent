@@ -29,6 +29,7 @@ var maxWorkers int64
 var workers int64 = 0
 var interval int64
 var workingDir string
+var baseUrl string
 
 func main() {
 	flags := flag.NewFlagSet("walter-agent", flag.ExitOnError)
@@ -36,6 +37,7 @@ func main() {
 	flags.Int64Var(&maxWorkers, "max_workers", 5, "Maximum number of walter workers")
 	flags.Int64Var(&interval, "interval", 1, "Job polling interval by seconds")
 	flags.StringVar(&workingDir, "working_dir", "/var/lib/walter/workspace", "Working directory")
+	flags.StringVar(&baseUrl, "base_url", "", "Base URL of walter-server to access from web browsers")
 
 	if err := flags.Parse(os.Args[1:]); err != nil {
 		panic(err)
@@ -319,7 +321,10 @@ func notify(job api.Job, result bool, w *walter.Walter, reportId int64) {
 }
 
 func buildUrl(job api.Job, reportId int64) string {
-	u, _ := url.Parse(server)
+	if baseUrl == "" {
+		baseUrl = server
+	}
+	u, _ := url.Parse(baseUrl)
 	values := u.Query()
 	values.Add("project", job.Project)
 	values.Add("report", strconv.FormatInt(reportId, 10))
