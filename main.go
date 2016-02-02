@@ -203,8 +203,7 @@ func postReport(job api.Job, result bool, w *walter.Walter, start int64, end int
 			Name:   stage.StageName,
 			Status: status,
 			Stages: getChildStages(stage.ChildStages),
-			Out:    stage.OutResult,
-			Err:    stage.ErrResult,
+			Log:    stage.CombinedResult,
 			Start:  stage.Start,
 			End:    stage.End,
 		})
@@ -261,8 +260,7 @@ func getChildStages(l list.List) (st []*api.Stage) {
 			Name:   stage.StageName,
 			Status: status,
 			Stages: getChildStages(stage.ChildStages),
-			Out:    stage.OutResult,
-			Err:    stage.ErrResult,
+			Log:    stage.CombinedResult,
 			Start:  stage.Start,
 			End:    stage.End,
 		})
