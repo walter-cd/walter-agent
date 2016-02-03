@@ -148,13 +148,23 @@ func runWalter(job api.Job, done chan bool, num int64) {
 	}
 
 	w, _ := walter.New(opts)
+
+	updateStatus(job, "pending", w, 0)
+
 	start := time.Now().Unix()
 	result := w.Run()
 	end := time.Now().Unix()
 
 	reportId := postReport(job, result, w, start, end)
 
-	updateStatus(job, result, w, reportId)
+	var status string
+	if result {
+		status = "success"
+	} else {
+		status = "fail"
+	}
+
+	updateStatus(job, status, w, reportId)
 	notify(job, result, w, reportId)
 
 	done <- true
@@ -274,7 +284,7 @@ func getChildStages(l list.List) (st []*api.Stage) {
 	return
 }
 
-func updateStatus(job api.Job, result bool, w *walter.Walter, reportId int64) {
+func updateStatus(job api.Job, status string, w *walter.Walter, reportId int64) {
 	github := w.Engine.Resources.RepoService
 
 	project := strings.Split(job.Project, "/")
@@ -287,18 +297,17 @@ func updateStatus(job api.Job, result bool, w *walter.Walter, reportId int64) {
 
 	github.(*services.GitHubClient).BaseUrl = baseUrl
 
-	state := ""
 	message := ""
-	if result {
-		state = "success"
+	if status == "success" {
 		message = "Walter build succeeded"
-	} else {
-		state = "fail"
+	} else if status == "pending" {
+		message = "Walter build pending"
+	} else if status == "fail" {
 		message = "Walter build failed"
 	}
 
 	res := services.Result{
-		State:   state,
+		State:   status,
 		Message: message,
 		SHA:     job.Revision,
 		Url:     buildUrl(job, reportId),
@@ -324,6 +333,10 @@ func notify(job api.Job, result bool, w *walter.Walter, reportId int64) {
 }
 
 func buildUrl(job api.Job, reportId int64) string {
+	if reportId == 0 {
+		return ""
+	}
+
 	if baseUrl == "" {
 		baseUrl = server
 	}
