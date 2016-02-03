@@ -160,9 +160,9 @@ func runWalter(job api.Job, done chan bool, num int64) {
 func postReport(job api.Job, result bool, w *walter.Walter, start int64, end int64) int64 {
 	var status string
 	if result {
-		status = "success"
+		status = "Passed"
 	} else {
-		status = "fail"
+		status = "Failed"
 	}
 
 	report := &api.Report{
@@ -196,9 +196,9 @@ func postReport(job api.Job, result bool, w *walter.Walter, start int64, end int
 
 		var status string
 		if stage.GetReturnValue() {
-			status = "success"
+			status = "Passed"
 		} else {
-			status = "fail"
+			status = "Failed"
 		}
 
 		report.Stages = append(report.Stages, &api.Stage{
@@ -253,9 +253,9 @@ func getChildStages(l list.List) (st []*api.Stage) {
 
 		var status string
 		if stage.GetReturnValue() {
-			status = "success"
+			status = "Passed"
 		} else {
-			status = "fail"
+			status = "Failed"
 		}
 
 		st = append(st, &api.Stage{
