@@ -125,7 +125,12 @@ func runWalter(job api.Job, done chan bool, num int64) {
 		ref = fmt.Sprintf("+refs/pull/%d/head", job.PullRequestNumber)
 	}
 
-	out, err = exec.Command("git", "fetch", "origin", ref).CombinedOutput()
+	if ref != "" {
+		out, err = exec.Command("git", "fetch", "origin", ref).CombinedOutput()
+	} else {
+		out, err = exec.Command("git", "fetch", "origin").CombinedOutput()
+	}
+
 	log.Debug((string(out)))
 	if err != nil {
 		log.Debug(err.Error())
