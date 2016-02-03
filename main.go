@@ -32,16 +32,14 @@ var workingDir string
 var baseUrl string
 
 func main() {
-	flags := flag.NewFlagSet("walter-agent", flag.ExitOnError)
-	flags.StringVar(&server, "server", "http://localhost:8080/", "URL of walter-server")
-	flags.Int64Var(&maxWorkers, "max_workers", 5, "Maximum number of walter workers")
-	flags.Int64Var(&interval, "interval", 1, "Job polling interval by seconds")
-	flags.StringVar(&workingDir, "working_dir", "/var/lib/walter/workspace", "Working directory")
-	flags.StringVar(&baseUrl, "base_url", "", "Base URL of walter-server to access from web browsers")
+	//flags := flag.NewFlagSet("walter-agent", flag.ExitOnError)
+	flag.StringVar(&server, "server", "http://localhost:8080/", "URL of walter-server")
+	flag.Int64Var(&maxWorkers, "max_workers", 5, "Maximum number of walter workers")
+	flag.Int64Var(&interval, "interval", 1, "Job polling interval by seconds")
+	flag.StringVar(&workingDir, "working_dir", "/var/lib/walter/workspace", "Working directory")
+	flag.StringVar(&baseUrl, "base_url", "", "Base URL of walter-server to access from web browsers")
 
-	if err := flags.Parse(os.Args[1:]); err != nil {
-		panic(err)
-	}
+	flag.Parse()
 
 	log.Info("walter-agent started")
 
