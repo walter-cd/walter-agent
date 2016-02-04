@@ -6,6 +6,7 @@ deps:
 
 test: deps
 	go test ./...
+	test `gofmt -l . | wc -l` -eq 0
 
 build: deps
 	godep restore
