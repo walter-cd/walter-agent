@@ -131,13 +131,19 @@ func runWalter(job api.Job, done chan bool, num int64) {
 		out, err = exec.Command("git", "fetch", "origin").CombinedOutput()
 	}
 
-	log.Debug((string(out)))
+	log.Debug(string(out))
 	if err != nil {
 		log.Debug(err.Error())
 	}
 
 	out, err = exec.Command("git", "checkout", job.Revision).CombinedOutput()
-	log.Debug((string(out)))
+	log.Debug(string(out))
+	if err != nil {
+		log.Debug(err.Error())
+	}
+
+	out, err = exec.Command("git", "submodule", "update", "--init", "--recursive").CombinedOutput()
+	log.Debug(string(out))
 	if err != nil {
 		log.Debug(err.Error())
 	}
