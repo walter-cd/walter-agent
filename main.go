@@ -102,6 +102,8 @@ func processJob(queue chan api.Job) {
 }
 
 func runWalter(job api.Job, done chan bool, num int64) {
+	defer func() { done <- true }()
+
 	workerDir := workingDir + "/" + strconv.FormatInt(num, 10)
 	if err := os.MkdirAll(workerDir, 0755); err != nil {
 		panic(err)
@@ -153,7 +155,12 @@ func runWalter(job api.Job, done chan bool, num int64) {
 		Mode:             "local",
 	}
 
-	w, _ := walter.New(opts)
+	w, err := walter.New(opts)
+
+	if err != nil {
+		log.Error(err.Error())
+		return
+	}
 
 	updateStatus(job, "pending", w, 0)
 
@@ -172,8 +179,6 @@ func runWalter(job api.Job, done chan bool, num int64) {
 
 	updateStatus(job, status, w, reportId)
 	notify(job, result, w, reportId)
-
-	done <- true
 }
 
 func postReport(job api.Job, result bool, w *walter.Walter, start int64, end int64) int64 {
