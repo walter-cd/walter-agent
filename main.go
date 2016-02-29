@@ -352,10 +352,7 @@ func buildUrl(job api.Job, reportId int64) string {
 		baseUrl = server
 	}
 	u, _ := url.Parse(baseUrl)
-	values := u.Query()
-	values.Add("project", job.Project)
-	values.Add("report", strconv.FormatInt(reportId, 10))
-	u.RawQuery = values.Encode()
+	u.Fragment = fmt.Sprintf("project=%s&report=%d", job.Project, reportId)
 
 	return u.String()
 }
